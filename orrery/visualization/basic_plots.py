@@ -338,7 +338,6 @@ def plot_orbit_3d(
     color_by: str = "lighting",
     elev: float = 22.0,
     azim: float | None = None,
-    show_hidden: bool = False,
     title: str | None = None,
     ax=None,
 ):
@@ -346,12 +345,12 @@ def plot_orbit_3d(
 
     color_by: "lighting" (sunlit / eclipse), "time", or "altitude"; the last two
         add a color bar and make multi-orbit runs like a decay spiral readable.
-    show_hidden: draw the parts of the orbit behind Earth as a faint dotted line.
     elev, azim: camera angles in degrees (default azim: 45 deg from the Sun, so
         the day side and terminator are in view). matplotlib can't depth-sort 3D,
         so set the view here rather than by dragging the window.
-    The view is orthographic (no perspective), which keeps the hidden-arc logic
-    exact, and is framed on the orbit, so high orbits fill the picture.
+    The whole orbit is drawn, including the parts behind Earth.
+    The view is orthographic (no perspective) and is framed on the orbit,
+    so high orbits fill the picture.
     '''
     if color_by not in ("lighting", "time", "altitude"):
         raise ValueError('color_by must be "lighting", "time", or "altitude".')
@@ -401,14 +400,10 @@ def plot_orbit_3d(
         warnings.warn(f"Couldn't load coastlines ({err}).")
 
     # Orbit
-    visible = ~_hidden(r_km, view, R)
-    if show_hidden:
-        ax.plot(*_mask(r_km, ~visible).T, color=HIDDEN, lw=0.8, ls=":", alpha=0.45, zorder=3)
-
     if color_by == "lighting":
         shadow = in_eclipse(tr.r, sun_position_eci(epoch, tr.t))
-        ax.plot(*_mask(r_km, visible & _grow(~shadow)).T, color=SUNLIT, lw=1.4, zorder=3)
-        ax.plot(*_mask(r_km, visible & _grow(shadow)).T, color=ECLIPSE, lw=1.4, zorder=3)
+        ax.plot(*_mask(r_km, _grow(~shadow)).T, color=SUNLIT, lw=1.4, zorder=3)
+        ax.plot(*_mask(r_km, _grow(shadow)).T, color=ECLIPSE, lw=1.4, zorder=3)
         handles = [Line2D([], [], color=SUNLIT, lw=2, label="Sunlit"),
                    Line2D([], [], color=ECLIPSE, lw=2, label="Eclipse")]
     else:
@@ -417,10 +412,9 @@ def plot_orbit_3d(
         else:
             values, label = np.linalg.norm(r_km, axis=1) - R, "Altitude (km)"
         segs = np.stack((r_km[:-1], r_km[1:]), axis=1)
-        keep = visible[:-1] & visible[1:]
         norm = Normalize(values.min(), values.max())
         mid = 0.5 * (values[:-1] + values[1:])
-        ax.add_collection3d(Line3DCollection(segs[keep], colors=TRACK_CMAP(norm(mid[keep])),
+        ax.add_collection3d(Line3DCollection(segs, colors=TRACK_CMAP(norm(mid)),
                                              linewidths=1.4, zorder=3))
         cax = fig.add_axes([0.62, 0.075, 0.32, 0.016])     # bottom right, clear of the globe
         cbar = fig.colorbar(ScalarMappable(norm=norm, cmap=TRACK_CMAP), cax=cax,
@@ -431,9 +425,8 @@ def plot_orbit_3d(
         handles = []
 
     for idx, color in ((0, START), (-1, END)):
-        if visible[idx]:
-            ax.scatter(*r_km[idx], color=color, s=42, edgecolor="white",
-                       linewidth=0.7, depthshade=False, zorder=4)
+        ax.scatter(*r_km[idx], color=color, s=42, edgecolor="white",
+                   linewidth=0.7, depthshade=False, zorder=4)
 
     # Frame on the orbit and Earth together (LEO stays Earth-centered)
     lo = np.minimum(r_km.min(axis=0), -R)
@@ -467,8 +460,6 @@ def plot_orbit_3d(
              color=TEXT_DARK_BG, fontsize=9, family="monospace")
     handles += [Line2D([], [], marker="o", ls="", color=START, label="Start"),
                 Line2D([], [], marker="o", ls="", color=END, label="End")]
-    if show_hidden:
-        handles.append(Line2D([], [], color=HIDDEN, ls=":", lw=1.2, label="Behind Earth"))
     ax.legend(handles=handles, loc="upper right", frameon=False, labelcolor=TEXT_DARK_BG)
     ax.set_title(title or "Orbit", color="white", fontsize=13, pad=0)
     fig.subplots_adjust(left=0, right=1, bottom=0, top=0.94)
