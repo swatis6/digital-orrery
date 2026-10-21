@@ -24,7 +24,7 @@ def main():
     model = ForceModel(use_j2=True, atmosphere=ExponentialAtmosphere(), spacecraft=sc)
     traj = propagate(
         model, y0, (0.0, 60 * SECONDS_PER_DAY), epoch=EPOCH,
-        events=[altitude_event(1e3)],   # stop at 100 km
+        events=[altitude_event(100e3)],   # stop at 100 km
     )
 
     if traj.stopped_by_event:
@@ -35,7 +35,7 @@ def main():
     viz.plot_altitude(traj, reentry_altitude=100e3,
                       title=f"{sc.name} orbital decay (single-exponential atmosphere)")
     viz.plot_ground_track(traj, title=f"{sc.name} ground track until re-entry")
-    viz.plot_orbit_3d(traj, title=f"{sc.name} decay")
+    viz.plot_orbit_3d(traj, color_by="altitude", title=f"{sc.name} decay")
     plt.show()
 
 

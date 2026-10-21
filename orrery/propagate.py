@@ -5,7 +5,6 @@ traj = propagate(force_model, y0, (0,86400), "RK4", dt=10) --> would be a fixed 
 traj = propagate(force_model, y0, (0,86400)) --> would be an adaptive DOP853 integrator'''
 
 from __future__ import annotations
-from asyncio import events
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Callable, Sequence
@@ -73,7 +72,7 @@ def _crossed(g_prev: float, g: float, direction: float) -> bool:
     return falling or rising
 
 def propagate_rk4(f: EOM, y0: np.ndarray, t_span: tuple[float, float], #(start time, end time) in seconds since epoch
-                dt: float, events: Sequence[Event] | None = None, epoch: datetime | None = None) -> Trajectory:
+                  dt: float, events: Sequence[Event] = (), epoch: datetime | None = None) -> Trajectory:
     '''propagates the state vector using a fixed-step RK4 integrator. f is the equations of motion function,
     y0 is the initial state vector, t_span is a tuple of (start time, end time) in seconds since epoch, 
     dt is the time step in seconds, events is a list of event functions, and epoch is the datetime of the 
@@ -84,7 +83,7 @@ def propagate_rk4(f: EOM, y0: np.ndarray, t_span: tuple[float, float], #(start t
     ts, ys = [t], [y] #initialize lists to store time and state vectors
     g_prev = [ev(t, y) for ev in events] #initialize list to store previous event function values
 
-    n_steps = int(np.ceil((tf-t0)/dt)) #calculate the number of steps needed to reach the final time
+    n_steps = int(np.ceil((tf-t0)/dt - 1e-9)) #number of steps to reach the final time (- 1e-9 works against float round-off adding an extra step)
     for k in range(n_steps):
         t_next = min(t0+(k+1)*dt, tf) #calculate the next time step, ensuring it does not exceed the final time
         y= rk4_step(f, t, y, t_next - t) #calculate the next state vector using the RK4 integrator
@@ -92,12 +91,12 @@ def propagate_rk4(f: EOM, y0: np.ndarray, t_span: tuple[float, float], #(start t
         ts.append(t) 
         ys.append(y)
     
-    for i, ev in enumerate(events):
+        for i, ev in enumerate(events): #check every event after every step
             g = ev(t, y) #calculate current value of event function
             if getattr(ev, "terminal", False) and _crossed(g_prev[i], g, getattr(ev, "direction", 0)): #if event terminal/crossed, stop run
                 name=getattr(ev, "__name__", "event") #get the name of the event function
                 return Trajectory(np.array(ts), np.array(ys), True, f"{name} triggered at t={t:.1f} s", epoch) #return traj with event triggered msg
-    g_prev[i] = g #update previous value of event function
+            g_prev[i] = g #update previous value of event function
 
     return Trajectory(np.array(ts), np.array(ys), False, "Run completed", epoch) #return traj with run completed msg    
 
