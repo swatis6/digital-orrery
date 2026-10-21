@@ -1,5 +1,4 @@
-'''Config template: every setting the simulator currently accepts.
-Copy/paste, change settings, and run.'''
+'''TeraLink-1'''
 
 from datetime import datetime, timezone
 import numpy as np
