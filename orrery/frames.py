@@ -11,6 +11,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import numpy as np
 
+from orrery.constants import F_EARTH, R_EARTH
+
 J2000_JD = 2451545.0 #julian date - continuous count of days since 4713 BC
 J2000 = datetime(2000, 1, 1, 12, 0, 0, 0, tzinfo=timezone.utc)
 
@@ -69,3 +71,22 @@ def latlon_to_ecef(lat_deg: float, lon_deg: float, radius: float) -> np.ndarray:
             #spherical to cartesian: x = cos(lat)*cos(lon); y = cos(lat)*sin(lon); z = sin(lat)
 
 
+def ecef_to_geodetic(r_ecef: np.ndarray, a: float = R_EARTH, f: float = F_EARTH
+                     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    '''Geodetic latitude (deg), longitude (deg), and height above the WGS-84 ellipsoid (m).
+    Geodetic latitude is the angle of the ellipsoid's surface normal (map latitude).
+    Converges to under 1 mm for anything near Earth.
+    Returns arrays of length N for (N, 3) input, length 1 for (3,) input.'''
+    r = np.atleast_2d(r_ecef)
+    x, y, z = r[:, 0], r[:, 1], r[:, 2]
+    e2 = f * (2.0 - f) #eccentricity squared of the ellipsoid
+    p = np.hypot(x, y) #distance from the spin axis
+    lat = np.arctan2(z, p * (1.0 - e2))
+    for _ in range(5):
+        sin_lat = np.sin(lat)
+        n = a / np.sqrt(1.0 - e2 * sin_lat**2) #radius of curvature in vertical
+        lat = np.arctan2(z + e2 * n * sin_lat, p)
+    sin_lat, cos_lat = np.sin(lat), np.cos(lat)
+    h = p * cos_lat + z * sin_lat - a * np.sqrt(1.0 - e2 * sin_lat**2) #height that stays fine at the poles
+    lon = np.degrees(np.arctan2(y, x))
+    return np.degrees(lat), lon, h

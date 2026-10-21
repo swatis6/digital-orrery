@@ -6,7 +6,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from orrery.frames import (J2000, J2000_JD, ecef_to_eci, ecef_to_latlon, eci_to_ecef,
-                           gmst, gmst_at, julian_date, latlon_to_ecef)
+                           gmst, gmst_at, julian_date, latlon_to_ecef, ecef_to_geodetic)
 
 EPOCH = datetime(2026, 10, 15, 12, 0, tzinfo=timezone.utc)
 SIDEREAL_DAY = 86164.0905  # s
@@ -79,3 +79,16 @@ def test_latlon_round_trip():
 def test_north_pole_latitude():
     lat, _ = ecef_to_latlon(np.array([0.0, 0.0, 6378137.0]))
     assert_allclose(lat[0], 90.0)
+
+
+def test_geodetic_round_trip():
+    from orrery.constants import F_EARTH, R_EARTH
+    e2 = F_EARTH * (2.0 - F_EARTH)
+    for lat_deg, lon_deg, h in [(51.6, -75.0, 416e3), (-33.0, 151.2, 0.0), (89.9, 10.0, 600e3)]:
+        lat, lon = np.radians(lat_deg), np.radians(lon_deg)
+        n = R_EARTH / np.sqrt(1.0 - e2 * np.sin(lat)**2)
+        r = np.array([(n + h) * np.cos(lat) * np.cos(lon),
+                      (n + h) * np.cos(lat) * np.sin(lon),
+                      (n * (1.0 - e2) + h) * np.sin(lat)])
+        lat_out, lon_out, h_out = ecef_to_geodetic(r)
+        assert_allclose([lat_out[0], lon_out[0], h_out[0]], [lat_deg, lon_deg, h], atol=1e-3)

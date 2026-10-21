@@ -13,6 +13,7 @@ dependencies = [
     "scipy>=1.10",
     "matplotlib>=3.7",
     "cartopy>=0.23",          # coastlines and land for the plots
+    "pymsis>=0.11",           # NRLMSIS atmosphere model
 ]
 
 [project.optional-dependencies]

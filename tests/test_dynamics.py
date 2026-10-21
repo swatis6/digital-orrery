@@ -111,3 +111,17 @@ def test_force_model_call_returns_velocity_then_acceleration():
     assert dydt.shape == (6,)
     assert_allclose(dydt[:3], v)
     assert_allclose(dydt[3:], model.acceleration(0.0, r, v))
+
+
+def test_force_model_passes_time_to_atmosphere():
+    class RecordingAtmosphere:
+        def __init__(self):
+            self.times = []
+
+        def density(self, r, t=0.0):
+            self.times.append(t)
+            return 1e-12
+
+    atm = RecordingAtmosphere()
+    ForceModel(atmosphere=atm, spacecraft=Spacecraft())(4321.0, np.array([R_LEO, 0, 0, 0, 7600.0, 0]))
+    assert atm.times == [4321.0]

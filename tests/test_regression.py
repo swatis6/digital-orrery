@@ -20,8 +20,8 @@ from orrery.spacecraft import Spacecraft
 EPOCH = datetime(2026, 10, 15, 12, 0, tzinfo=timezone.utc)
 
 # Baselines (seconds from start to 100 km), recorded 2026-10-21
-LEO_DECAY_REENTRY_S = 41819.90 # examples/leo_decay.py       (0.484 days)
-INCLINED_DECAY_REENTRY_S = 62941.52 # examples/inclined_decay.py  (0.728 days)
+LEO_DECAY_REENTRY_S = 41819.90 # examples/leo_decay.py (0.484 days)
+INCLINED_DECAY_REENTRY_S = 62941.52 # examples/inclined_decay.py (0.728 days)
 
 
 def _reentry_time(inc_deg: float) -> float:

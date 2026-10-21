@@ -6,6 +6,7 @@ import numpy as np
 #Earth (EGM-96 for gravity // WSG-84 for gps values) 
 MU_EARTH = 3.986004418e14 # m^3/s^2, gravitational parameter
 R_EARTH = 6378137.0 # m, equatorial radius
+F_EARTH = 1.0 / 298.257223563 # -, flattening of WGS-84 ellipsoid (polar radius = R_EARTH*(1 - F_EARTH))
 J2_EARTH = 1.08262668e-3 # -, oblateness coefficient
 OMEGA_EARTH = 7.2921159e-5 # rad/s, rotation rate
 

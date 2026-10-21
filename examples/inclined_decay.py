@@ -1,4 +1,5 @@
-'''Orbital decay of a 3U CubeSat from 200 km at 51.6 deg inclination, with J2 and drag.
+'''Orbital decay of a 3U CubeSat from 200 km at 51.6 deg inclination, with J2 and drag and 
+nrlmsis atmosphere.
 
 To test more features
 '''
@@ -9,7 +10,7 @@ import numpy as np
 
 from orrery.visualization import basic_plots as viz
 from orrery.constants import DEG2RAD, J2_EARTH, MU_EARTH, R_EARTH, RAD2DEG, SECONDS_PER_DAY
-from orrery.dynamics import ExponentialAtmosphere, ForceModel
+from orrery.dynamics import ExponentialAtmosphere, ForceModel, NRLMSISAtmosphere
 from orrery.orbits import circular_velocity, orbital_period
 from orrery.propagate import altitude_event, propagate
 from orrery.spacecraft import Spacecraft
@@ -21,6 +22,10 @@ START_ALTITUDE = 200e3
 INCLINATION_DEG = 51.6 
 REENTRY_ALTITUDE = 100e3 
 USE_J2 = True
+USE_NRLMSIS = True
+F107 = 150.0
+F107A = 150.0
+AP = 15.0
 
 def initial_state(altitude: float, inc_deg: float) -> np.ndarray:
     '''Circular orbit starting at the ascending node (RAAN = 0).'''
@@ -41,7 +46,11 @@ def main():
     sc = Spacecraft(name="TesterSat", mass=4.0, cd=2.2, area=0.03)
     y0 = initial_state(START_ALTITUDE, INCLINATION_DEG)
 
-    model = ForceModel(use_j2=USE_J2, atmosphere=ExponentialAtmosphere(), spacecraft=sc)
+    if USE_NRLMSIS:
+        atmosphere = NRLMSISAtmosphere(epoch=EPOCH, f107=F107, f107a=F107A, ap=AP)
+    else:
+        atmosphere = ExponentialAtmosphere()
+    model = ForceModel(use_j2=USE_J2, atmosphere=atmosphere, spacecraft=sc)
     traj = propagate(model, y0, (0.0, 60 * SECONDS_PER_DAY), epoch=EPOCH,
                      events=[altitude_event(REENTRY_ALTITUDE)])
 
@@ -61,13 +70,18 @@ def main():
               f"(about {traj.t[-1] / period:.0f} orbits).")
     else:
         print(f"{sc.name} still in orbit after {days:.0f} days.")
+    if USE_NRLMSIS:
+        print(f"Atmosphere: NRLMSIS (F10.7 = {F107}, F10.7a = {F107A}, Ap = {AP})")
+    else:
+        print("Atmosphere: single exponential")
     print(f"Time in eclipse: {eclipse:.0%}")
     print(f"Orbit plane turned {node_drift[-1] - node_drift[0]:+.2f} deg "
           f"({node_rate:+.2f} deg/day; J2 theory at {START_ALTITUDE / 1e3:.0f} km: "
           f"{theory if USE_J2 else 0.0:+.2f} deg/day)")
 
     # Plots
-    label = f"{START_ALTITUDE / 1e3:.0f} km, {INCLINATION_DEG}°" + (", J2" if USE_J2 else "")
+    label = (f"{START_ALTITUDE / 1e3:.0f} km, {INCLINATION_DEG}°" + (", J2" if USE_J2 else "")
+             + (", NRLMSIS" if USE_NRLMSIS else ", exponential atm"))
     viz.plot_altitude(traj, reentry_altitude=REENTRY_ALTITUDE,
                       title=f"{sc.name} orbital decay · {label}")
     viz.plot_ground_track(traj, title=f"{sc.name} ground track until re-entry · {label}")
